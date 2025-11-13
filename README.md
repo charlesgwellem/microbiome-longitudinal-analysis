@@ -30,19 +30,23 @@ Short, reproducible R analysis exploring microbiome differences across Healthy, 
 > ```
 
 ## Repo tree
+````
+
 Microbiome/
 ├─ notebooks/
-│ └─ script.Rmd
+│  └─ script.Rmd
 ├─ data/
-│ ├─ raw/
-│ └─ processed/
+│  ├─ raw/
+│  └─ processed/
 ├─ results/
-│ ├─ figures/
-│ └─ tables/
+│  ├─ figures/
+│  └─ tables/
 ├─ docs/
 ├─ Microbiome.Rproj
 ├─ .gitignore
 └─ LICENSE
+
+```
 
 
 ## Example figures
