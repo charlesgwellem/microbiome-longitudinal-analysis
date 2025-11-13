@@ -1,0 +1,148 @@
+---
+title: "script"
+author: "Travis"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  word_document:
+    toc: yes
+    toc_depth: '6'
+  pdf_document:
+    toc: yes
+    toc_depth: '6'
+  html_document:
+    theme: cosmo
+    highlight: monochrome
+    toc: yes
+    toc_float: no
+    toc_depth: 6
+    code_folding: hide
+editor_options:
+  chunk_output_type: console
+---
+
+```{css, echo=FALSE}
+<style>
+body, divi, h2, h3, h4 {
+    font-family: "Bookman", serif;
+}
+
+body {
+    color: #333333;
+}
+a, a:hover {
+    color: red;
+}
+pre {
+    font-size: 10px;
+}
+</style>
+```
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+# Load necessary libraries
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(pheatmap)
+library(vegan)
+library(tidyr)
+
+# Load the data
+file_path <- "Micro data for upwork.xlsx"
+data <- read_excel(file_path, sheet = "Species Taxa")
+
+# Separate the data for each intervention and timepoint
+group1 <- data %>% filter(Intervention == "Intervention_1")
+group2 <- data %>% filter(Intervention == "Intervention_2")
+
+# Split each group into baseline and Post-Intervention timepoints
+group1_baseline <- group1 %>% filter(Timepoint == "Baseline")
+group1_followup <- group1 %>% filter(Timepoint == "Post-Intervention")
+
+group2_baseline <- group2 %>% filter(Timepoint == "Baseline")
+group2_followup <- group2 %>% filter(Timepoint == "Post-Intervention")
+
+# Remove metadata columns to get only taxa data
+taxa_columns <- colnames(data)[4:ncol(data)]
+group1_baseline_taxa <- group1_baseline[, taxa_columns]
+group1_followup_taxa <- group1_followup[, taxa_columns]
+
+group2_baseline_taxa <- group2_baseline[, taxa_columns]
+group2_followup_taxa <- group2_followup[, taxa_columns]
+
+# Initialize dataframes to store results
+group1_results <- data.frame(Taxon = taxa_columns, Statistic = numeric(length(taxa_columns)), p_value = numeric(length(taxa_columns)))
+group2_results <- data.frame(Taxon = taxa_columns, Statistic = numeric(length(taxa_columns)), p_value = numeric(length(taxa_columns)))
+
+# Perform Wilcoxon signed-rank test for each taxon in group 1
+for (taxa in taxa_columns) {
+  test <- wilcox.test(group1_baseline_taxa[[taxa]], group1_followup_taxa[[taxa]], paired = TRUE)
+  group1_results[group1_results$Taxon == taxa, "Statistic"] <- test$statistic
+  group1_results[group1_results$Taxon == taxa, "p_value"] <- test$p.value
+}
+
+# Perform Wilcoxon signed-rank test for each taxon in group 2
+for (taxa in taxa_columns) {
+  test <- wilcox.test(group2_baseline_taxa[[taxa]], group2_followup_taxa[[taxa]], paired = TRUE)
+  group2_results[group2_results$Taxon == taxa, "Statistic"] <- test$statistic
+  group2_results[group2_results$Taxon == taxa, "p_value"] <- test$p.value
+}
+
+# Display the results
+print(group1_results)
+print(group2_results)
+
+# Optionally, save the results to CSV files
+write.csv(group1_results, "group1_longitudinal_results.csv", row.names = FALSE)
+write.csv(group2_results, "group2_longitudinal_results.csv", row.names = FALSE)
+
+# Visualizations
+# Longitudinal plot for a selected taxon
+selected_taxon <- "Taxa_001" # Replace with the taxon you want to visualize
+
+data_longitudinal <- data %>%
+  filter(Timepoint %in% c("Baseline", "Post-Intervention")) %>%
+  select(`Sample name`, Intervention, Timepoint, !!sym(selected_taxon))
+
+ggplot(data_longitudinal, aes(x = Timepoint, y = !!sym(selected_taxon), group = `Sample name`, color = Intervention)) +
+  geom_line() +
+  geom_point() +
+  labs(title = paste("Longitudinal plot of", selected_taxon, "by Intervention"), y = selected_taxon, x = "Timepoint") +
+  theme_minimal()
+
+# Additional analyses
+# Calculate alpha diversity (Shannon index) for longitudinal data
+group1$Shannon <- diversity(group1[, taxa_columns], index = "shannon")
+group2$Shannon <- diversity(group2[, taxa_columns], index = "shannon")
+
+# Boxplot of alpha diversity over time
+all_data <- rbind(group1, group2)
+ggplot(all_data, aes(x = Timepoint, y = Shannon, fill = Intervention)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Shannon Diversity by Timepoint and Intervention", y = "Shannon Diversity Index", x = "Timepoint") +
+  theme_minimal()
+
+# Principal Coordinates Analysis (PCoA) for longitudinal data
+dist_matrix_longitudinal <- vegdist(all_data[, taxa_columns], method = "bray")
+pcoa_results_longitudinal <- cmdscale(dist_matrix_longitudinal, eig = TRUE, k = 2)
+pcoa_df_longitudinal <- as.data.frame(pcoa_results_longitudinal$points)
+pcoa_df_longitudinal$Intervention <- all_data$Intervention
+pcoa_df_longitudinal$Timepoint <- all_data$Timepoint
+pcoa_df_longitudinal$Sample <- all_data$`Sample name`
+
+ggplot(pcoa_df_longitudinal, aes(x = V1, y = V2, color = Interaction(Timepoint, Intervention), label = Sample)) +
+  geom_point(size = 3) +
+  geom_text(vjust = 1.5, hjust = 1.5) +
+  labs(title = "PCoA of Longitudinal Taxa Abundances", x = "PCoA 1", y = "PCoA 2") +
+  theme_minimal()
+
+# Save visualizations
+ggsave("longitudinal_plot_selected_taxon.png")
+ggsave("boxplot_shannon_diversity_longitudinal.png")
+ggsave("pcoa_taxa_abundances_longitudinal.png")
+```
+

@@ -1,0 +1,18 @@
+# R / RStudio
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# renv (if you use it later)
+renv/library/
+renv/staging/
+.Rprofile
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+
+# Data you don't want on GitHub (uncomment if needed)
+# data/raw/*
+# !data/raw/README.md
